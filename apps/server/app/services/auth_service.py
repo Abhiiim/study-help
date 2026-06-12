@@ -18,12 +18,14 @@ from app.api.core.security import (
     hash_token,
     verify_password,
 )
+from app.models.oauth_login_token import OAuthLoginToken
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_USERINFO_URL = "https://www.googleapis.com/oauth2/v3/userinfo"
+OAUTH_LOGIN_TOKEN_EXPIRE_MINUTES = 2
 
 
 def normalize_email(email: str) -> str:
@@ -265,7 +267,7 @@ def _exchange_google_code(code: str) -> dict:
         raise UnauthorizedError("Google OAuth exchange failed") from exc
 
 
-def google_callback(db: Session, code: str, state: str, device_info: str | None = None) -> tuple[User, str, str]:
+def _complete_google_user(db: Session, code: str, state: str) -> User:
     _verify_google_state(state)
     profile = _exchange_google_code(code)
 
@@ -294,6 +296,53 @@ def google_callback(db: Session, code: str, state: str, device_info: str | None 
     elif user.google_sub is None:
         user.google_sub = sub
 
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def google_callback(db: Session, code: str, state: str, device_info: str | None = None) -> tuple[User, str, str]:
+    user = _complete_google_user(db, code, state)
+    access_token, refresh_token = _issue_token_pair(db, user, device_info=device_info)
+    db.refresh(user)
+    return user, access_token, refresh_token
+
+
+def create_google_login_token(db: Session, code: str, state: str) -> str:
+    user = _complete_google_user(db, code, state)
+    token = generate_jti()
+    db.add(
+        OAuthLoginToken(
+            user_id=user.id,
+            token_hash=hash_token(token),
+            expires_at=datetime.now(UTC) + timedelta(minutes=OAUTH_LOGIN_TOKEN_EXPIRE_MINUTES),
+        )
+    )
+    db.commit()
+    return token
+
+
+def exchange_google_login_token(
+    db: Session,
+    token: str,
+    device_info: str | None = None,
+) -> tuple[User, str, str]:
+    token_record = db.scalar(select(OAuthLoginToken).where(OAuthLoginToken.token_hash == hash_token(token)))
+
+    if token_record is None or token_record.used_at is not None:
+        raise UnauthorizedError("Invalid OAuth login token")
+
+    expires_at = token_record.expires_at
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=UTC)
+    if expires_at <= datetime.now(UTC):
+        raise UnauthorizedError("OAuth login token has expired")
+
+    user = db.get(User, token_record.user_id)
+    if user is None or not user.is_active:
+        raise UnauthorizedError("User not found or inactive")
+
+    token_record.used_at = datetime.now(UTC)
     access_token, refresh_token = _issue_token_pair(db, user, device_info=device_info)
     db.refresh(user)
     return user, access_token, refresh_token

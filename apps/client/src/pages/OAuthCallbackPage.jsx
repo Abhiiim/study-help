@@ -1,20 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "../contexts/AuthContext";
 
 export default function OAuthCallbackPage() {
   const { completeGoogleSignIn } = useAuth();
   const [error, setError] = useState("");
+  const hasStarted = useRef(false);
 
   useEffect(() => {
+    if (hasStarted.current) {
+      return undefined;
+    }
+
+    hasStarted.current = true;
     let cancelled = false;
 
     async function finishOAuth() {
       const params = new URLSearchParams(window.location.search);
-      const code = params.get("code");
-      const state = params.get("state");
+      const token = params.get("token");
 
-      if (!code || !state) {
+      if (!token) {
         if (!cancelled) {
           setError("Google callback is missing required parameters.");
         }
@@ -22,7 +27,7 @@ export default function OAuthCallbackPage() {
       }
 
       try {
-        await completeGoogleSignIn(code, state);
+        await completeGoogleSignIn(token);
         if (!cancelled) {
           window.location.replace("/");
         }

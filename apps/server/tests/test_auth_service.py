@@ -94,3 +94,29 @@ def test_google_callback_rejects_non_gmail(db_session, monkeypatch):
             code="oauth-code",
             state=_google_state(),
         )
+
+
+def test_google_login_token_exchanges_once(db_session, monkeypatch):
+    def fake_exchange_google_code(_: str) -> dict:
+        return {
+            "sub": "google-user-3",
+            "email": "alice@gmail.com",
+            "email_verified": True,
+        }
+
+    monkeypatch.setattr(auth_service, "_exchange_google_code", fake_exchange_google_code)
+
+    login_token = auth_service.create_google_login_token(
+        db_session,
+        code="oauth-code",
+        state=_google_state(),
+    )
+
+    user, access_token, refresh_token = auth_service.exchange_google_login_token(db_session, login_token)
+
+    assert user.email == "alice@gmail.com"
+    assert access_token
+    assert refresh_token
+
+    with pytest.raises(UnauthorizedError):
+        auth_service.exchange_google_login_token(db_session, login_token)

@@ -44,3 +44,7 @@ class AuthResponse(TokenPair):
 class GoogleStartResponse(BaseModel):
     authorize_url: str
     state: str
+
+
+class GoogleSessionRequest(BaseModel):
+    token: str = Field(min_length=1)

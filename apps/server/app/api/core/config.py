@@ -14,7 +14,7 @@ class Settings(BaseSettings):
 
     api_v1_prefix: str = "/api/v1"
 
-    database_url: str = "postgresql+psycopg2://postgres:postgres@localhost:5432/study_saver"
+    database_url: str
 
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"
@@ -23,7 +23,9 @@ class Settings(BaseSettings):
 
     google_client_id: str = ""
     google_client_secret: str = ""
-    google_redirect_uri: str = "http://localhost:5173/oauth/callback"
+    google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
+
+    frontend_oauth_callback_url: str = "http://localhost:5173/oauth/callback"
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
     cors_origin_regex: str | None = r"^chrome-extension://[a-z]{32}$"

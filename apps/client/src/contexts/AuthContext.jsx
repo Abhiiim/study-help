@@ -139,8 +139,8 @@ export function AuthProvider({ children }) {
   }, []);
 
   const completeGoogleSignIn = useCallback(
-    async (code, state) => {
-      const payload = await completeGoogleOAuth(code, state);
+    async (token) => {
+      const payload = await completeGoogleOAuth(token);
       applyAuthResponse(payload);
       return payload.user;
     },

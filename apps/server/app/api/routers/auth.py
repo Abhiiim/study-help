@@ -1,10 +1,23 @@
+from urllib.parse import urlencode
+
 from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.api.core.auth import get_current_user
+from app.api.core.config import get_settings
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.auth import AuthResponse, GoogleStartResponse, LoginRequest, LogoutRequest, RefreshRequest, SignupRequest, UserOut
+from app.schemas.auth import (
+    AuthResponse,
+    GoogleSessionRequest,
+    GoogleStartResponse,
+    LoginRequest,
+    LogoutRequest,
+    RefreshRequest,
+    SignupRequest,
+    UserOut,
+)
 from app.services import auth_service
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -51,17 +64,34 @@ def google_start() -> GoogleStartResponse:
     return GoogleStartResponse(authorize_url=authorize_url, state=state_value)
 
 
-@router.get("/google/callback", response_model=AuthResponse)
+@router.get("/google/callback")
 def google_callback(
-    request: Request,
     code: str = Query(..., min_length=1),
     state: str = Query(..., min_length=1),
     db: Session = Depends(get_db),
-) -> AuthResponse:
-    user, access_token, refresh_token = auth_service.google_callback(
+) -> RedirectResponse:
+    login_token = auth_service.create_google_login_token(
         db,
         code=code,
         state=state,
+    )
+    callback_url = get_settings().frontend_oauth_callback_url
+    separator = "&" if "?" in callback_url else "?"
+    return RedirectResponse(
+        f"{callback_url}{separator}{urlencode({'token': login_token})}",
+        status_code=status.HTTP_302_FOUND,
+    )
+
+
+@router.post("/google/session", response_model=AuthResponse)
+def google_session(
+    payload: GoogleSessionRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> AuthResponse:
+    user, access_token, refresh_token = auth_service.exchange_google_login_token(
+        db,
+        token=payload.token,
         device_info=_device_from_request(request),
     )
     return AuthResponse(

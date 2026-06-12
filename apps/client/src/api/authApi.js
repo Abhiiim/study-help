@@ -39,11 +39,11 @@ export function startGoogleOAuth() {
   return apiRequest("/auth/google/start");
 }
 
-export function completeGoogleOAuth(code, state) {
-  return apiRequest("/auth/google/callback", {
-    query: {
-      code,
-      state,
+export function completeGoogleOAuth(token) {
+  return apiRequest("/auth/google/session", {
+    method: "POST",
+    body: {
+      token,
     },
   });
 }
