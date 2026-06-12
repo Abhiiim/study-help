@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Study Saver</title>
+    <link rel="stylesheet" href="./popup.css">
+  </head>
+  <body>
+    <main class="popup-shell">
+      <header class="popup-header">
+        <div>
+          <p class="eyebrow">Study Saver</p>
+          <h1>Save page</h1>
+        </div>
+        <button type="button" class="ghost-button" data-open-dashboard>Dashboard</button>
+      </header>
+
+      <p id="statusMessage" class="status hidden" role="status"></p>
+
+      <section id="signedOutView" class="view">
+        <form id="loginForm" class="stack">
+          <label>
+            Gmail
+            <input id="emailInput" type="email" autocomplete="email" placeholder="you@gmail.com" required>
+          </label>
+
+          <label>
+            Password
+            <input id="passwordInput" type="password" autocomplete="current-password" minlength="8" required>
+          </label>
+
+          <button id="loginButton" type="submit" class="primary-button">Sign in</button>
+        </form>
+
+        <p class="muted">Use the same Gmail account as the dashboard.</p>
+        <button type="button" class="secondary-button full-width" data-open-dashboard>
+          Open dashboard sign-in
+        </button>
+      </section>
+
+      <section id="signedInView" class="view hidden">
+        <div class="account-row">
+          <div>
+            <p class="muted compact">Signed in as</p>
+            <p id="accountEmail" class="account-email"></p>
+          </div>
+          <button id="logoutButton" type="button" class="ghost-button">Logout</button>
+        </div>
+
+        <section class="tab-preview" aria-live="polite">
+          <p id="tabTitle" class="tab-title"></p>
+          <p id="tabUrl" class="tab-url"></p>
+        </section>
+
+        <form id="saveForm" class="stack">
+          <label class="check-row">
+            <input id="favoriteInput" type="checkbox">
+            Mark favorite
+          </label>
+
+          <label>
+            Note
+            <textarea id="noteInput" rows="4" maxlength="5000" placeholder="Optional note"></textarea>
+          </label>
+
+          <button id="saveButton" type="submit" class="primary-button">Save current page</button>
+        </form>
+      </section>
+    </main>
+
+    <script type="module" src="./popup.js"></script>
+  </body>
+</html>

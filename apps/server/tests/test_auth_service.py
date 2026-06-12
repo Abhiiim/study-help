@@ -1,7 +1,24 @@
-import pytest
+from datetime import UTC, datetime, timedelta
 
+import pytest
+from jose import jwt
+
+from app.api.core.config import get_settings
 from app.api.core.exceptions import BadRequestError, UnauthorizedError
 from app.services import auth_service
+
+
+def _google_state() -> str:
+    settings = get_settings()
+    return jwt.encode(
+        {
+            "type": "google_state",
+            "nonce": "test-nonce",
+            "exp": datetime.now(UTC) + timedelta(minutes=10),
+        },
+        settings.jwt_secret_key,
+        algorithm=settings.jwt_algorithm,
+    )
 
 
 def test_signup_rejects_non_gmail(db_session):
@@ -37,3 +54,43 @@ def test_logout_all_revokes_all_sessions(db_session):
 
     with pytest.raises(UnauthorizedError):
         auth_service.refresh_tokens(db_session, refresh_token_two)
+
+
+def test_google_callback_accepts_verified_gmail(db_session, monkeypatch):
+    def fake_exchange_google_code(_: str) -> dict:
+        return {
+            "sub": "google-user-1",
+            "email": "alice@gmail.com",
+            "email_verified": True,
+        }
+
+    monkeypatch.setattr(auth_service, "_exchange_google_code", fake_exchange_google_code)
+
+    user, access_token, refresh_token = auth_service.google_callback(
+        db_session,
+        code="oauth-code",
+        state=_google_state(),
+    )
+
+    assert user.email == "alice@gmail.com"
+    assert user.google_sub == "google-user-1"
+    assert access_token
+    assert refresh_token
+
+
+def test_google_callback_rejects_non_gmail(db_session, monkeypatch):
+    def fake_exchange_google_code(_: str) -> dict:
+        return {
+            "sub": "google-user-2",
+            "email": "alice@example.com",
+            "email_verified": True,
+        }
+
+    monkeypatch.setattr(auth_service, "_exchange_google_code", fake_exchange_google_code)
+
+    with pytest.raises(BadRequestError):
+        auth_service.google_callback(
+            db_session,
+            code="oauth-code",
+            state=_google_state(),
+        )

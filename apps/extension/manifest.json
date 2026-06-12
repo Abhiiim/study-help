@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Study Saver",
+  "description": "Save coding problems and study links to your Study Saver dashboard.",
+  "version": "0.1.0",
+  "action": {
+    "default_popup": "popup/index.html",
+    "default_title": "Save to Study Saver"
+  },
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "permissions": ["activeTab", "storage", "tabs"],
+  "host_permissions": [
+    "http://localhost:8000/*",
+    "http://127.0.0.1:8000/*"
+  ]
+}

@@ -23,9 +23,10 @@ class Settings(BaseSettings):
 
     google_client_id: str = ""
     google_client_secret: str = ""
-    google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
+    google_redirect_uri: str = "http://localhost:5173/oauth/callback"
 
-    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173", "chrome-extension://*"])
+    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
+    cors_origin_regex: str | None = r"^chrome-extension://[a-z]{32}$"
 
 
 @lru_cache
