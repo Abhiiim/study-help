@@ -30,7 +30,7 @@ export default function OAuthCallbackPage() {
         window.history.replaceState({}, "", "/oauth/callback");
         await completeGoogleSignIn(token);
         if (!cancelled) {
-          window.location.replace("/");
+          window.location.replace("/dashboard");
         }
       } catch (nextError) {
         if (!cancelled) {

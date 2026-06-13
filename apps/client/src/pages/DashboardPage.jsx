@@ -1,257 +1,176 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect } from "react";
+import { useMatch, useNavigate } from "react-router-dom";
 
-import ItemDetailPanel from "../components/ItemDetailPanel";
-import ItemFilters from "../components/ItemFilters";
-import ItemList from "../components/ItemList";
-import SaveItemForm from "../components/SaveItemForm";
-import StatsPanel from "../components/StatsPanel";
-import { createItem, deleteItem, fetchItemStats, listItems, updateItem } from "../api/itemsApi";
-import { useAuth } from "../contexts/AuthContext";
-import { useDebouncedValue } from "../hooks/useDebouncedValue";
+import AddURLModal from "../components/AddURLModal";
+import BlogCard from "../components/cards/BlogCard";
+import ProblemCard from "../components/cards/ProblemCard";
+import YouTubeCard from "../components/cards/YouTubeCard";
+import Sidebar from "../components/layout/Sidebar";
+import ResourceDetailView from "../components/ResourceDetailView";
+import Topbar from "../components/layout/Topbar";
+import { GridIcon, ListIcon } from "../components/shared/Icons";
+import { useResources } from "../hooks/useResources";
 
-const INITIAL_STATS = {
-  savedCount: 0,
-  favoriteCount: 0,
-  sourceCount: 0,
-  topSites: [],
+const FILTER_LABELS = {
+  all: "All Resources",
+  problem: "Problems",
+  yt: "Videos",
+  bl: "Blogs",
 };
 
-function toErrorMessage(error) {
-  return error?.message || "Something went wrong. Please try again.";
+const FILTERS = [
+  { key: "all", label: "All" },
+  { key: "problem", label: "Problems" },
+  { key: "yt", label: "Videos" },
+  { key: "bl", label: "Blogs" },
+];
+
+function ResourceCard({ resource, view, index }) {
+  if (resource.t === "yt") {
+    return <YouTubeCard resource={resource} view={view} index={index} />;
+  }
+  if (resource.t === "bl") {
+    return <BlogCard resource={resource} view={view} index={index} />;
+  }
+  return <ProblemCard resource={resource} view={view} index={index} />;
 }
 
 export default function DashboardPage() {
-  const { user, logout, withAuth } = useAuth();
+  const navigate = useNavigate();
+  const resourceMatch = useMatch("/dashboard/resources/:resourceId");
+  const resources = useResources();
+  const { modalOpen, setModalOpen } = resources;
+  const routeResourceId = resourceMatch?.params.resourceId || null;
+  const routeResource = routeResourceId
+    ? resources.resources.find((resource) => String(resource.id) === routeResourceId) || null
+    : null;
+  const isResourceRoute = Boolean(routeResourceId);
 
-  const [filters, setFilters] = useState({
-    q: "",
-    source_site: "",
-    content_type: "",
-    favorite: "all",
-    sort: "recent",
-    page: 1,
-    limit: 20,
-  });
+  useEffect(() => {
+    const onKeyDown = (event) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setModalOpen(true);
+      }
 
-  const [items, setItems] = useState([]);
-  const [total, setTotal] = useState(0);
-  const [listLoading, setListLoading] = useState(false);
-  const [listError, setListError] = useState("");
-
-  const [stats, setStats] = useState(INITIAL_STATS);
-
-  const [selectedItem, setSelectedItem] = useState(null);
-  const [globalError, setGlobalError] = useState("");
-
-  const [creating, setCreating] = useState(false);
-  const [savingItem, setSavingItem] = useState(false);
-  const [deletingItem, setDeletingItem] = useState(false);
-
-  const debouncedQuery = useDebouncedValue(filters.q, 350);
-
-  const listRequestFilters = useMemo(
-    () => ({
-      q: debouncedQuery || undefined,
-      source_site: filters.source_site || undefined,
-      content_type: filters.content_type || undefined,
-      is_favorite:
-        filters.favorite === "all"
-          ? undefined
-          : filters.favorite === "true",
-      page: filters.page,
-      limit: filters.limit,
-      sort: filters.sort,
-    }),
-    [debouncedQuery, filters.content_type, filters.favorite, filters.limit, filters.page, filters.sort, filters.source_site],
-  );
-
-  const totalPages = Math.max(1, Math.ceil(total / filters.limit));
-
-  const loadItems = useCallback(async () => {
-    setListLoading(true);
-    setListError("");
-
-    try {
-      const payload = await withAuth((accessToken) => listItems(accessToken, listRequestFilters));
-      setItems(payload.items);
-      setTotal(payload.total);
-      setSelectedItem((previous) => {
-        if (!previous) {
-          return null;
+      if (event.key === "Escape") {
+        if (modalOpen) {
+          setModalOpen(false);
         }
-        return payload.items.find((item) => item.id === previous.id) || null;
-      });
-    } catch (error) {
-      setListError(toErrorMessage(error));
-    } finally {
-      setListLoading(false);
-    }
-  }, [listRequestFilters, withAuth]);
+      }
+    };
 
-  const loadStats = useCallback(async () => {
-    try {
-      const payload = await withAuth((accessToken) => fetchItemStats(accessToken));
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [modalOpen, setModalOpen]);
 
-      setStats({
-        savedCount: payload.saved_count,
-        favoriteCount: payload.favorite_count,
-        sourceCount: payload.source_count,
-        topSites: payload.top_sources,
-      });
-    } catch (error) {
-      setGlobalError(toErrorMessage(error));
-    }
-  }, [withAuth]);
-
-  useEffect(() => {
-    loadItems();
-  }, [loadItems]);
-
-  useEffect(() => {
-    loadStats();
-  }, [loadStats]);
-
-  const handleFilterChange = (field, value) => {
-    setFilters((previous) => ({
-      ...previous,
-      [field]: value,
-      page: field === "page" ? value : 1,
-    }));
-  };
-
-  const handleResetFilters = () => {
-    setFilters((previous) => ({
-      ...previous,
-      q: "",
-      source_site: "",
-      content_type: "",
-      favorite: "all",
-      sort: "recent",
-      page: 1,
-    }));
-  };
-
-  const handleCreate = async (payload) => {
-    setCreating(true);
-    setGlobalError("");
-
-    try {
-      await withAuth((accessToken) => createItem(accessToken, payload));
-      await Promise.all([loadItems(), loadStats()]);
-    } catch (error) {
-      setGlobalError(toErrorMessage(error));
-      throw error;
-    } finally {
-      setCreating(false);
+  const handleFilterChange = (filter) => {
+    resources.setFilter(filter);
+    if (isResourceRoute) {
+      navigate("/dashboard");
     }
   };
 
-  const handleSaveItem = async (payload) => {
-    if (!selectedItem) {
-      return;
-    }
-
-    setSavingItem(true);
-    setGlobalError("");
-
-    try {
-      const updated = await withAuth((accessToken) => updateItem(accessToken, selectedItem.id, payload));
-      setSelectedItem(updated);
-      setItems((previous) => previous.map((item) => (item.id === updated.id ? updated : item)));
-      await loadStats();
-    } catch (error) {
-      setGlobalError(toErrorMessage(error));
-    } finally {
-      setSavingItem(false);
-    }
-  };
-
-  const handleDeleteItem = async (item) => {
-    const confirmed = window.confirm("Delete this saved item?");
-    if (!confirmed) {
-      return;
-    }
-
-    setDeletingItem(true);
-    setGlobalError("");
-
-    try {
-      await withAuth((accessToken) => deleteItem(accessToken, item.id));
-      setSelectedItem(null);
-      await Promise.all([loadItems(), loadStats()]);
-    } catch (error) {
-      setGlobalError(toErrorMessage(error));
-    } finally {
-      setDeletingItem(false);
+  const handleSaveResource = (resource) => {
+    resources.addResource(resource);
+    resources.setFilter("all");
+    if (isResourceRoute) {
+      navigate("/dashboard");
     }
   };
 
   return (
-    <main className="dashboard-shell">
-      <header className="dashboard-header">
-        <div>
-          <p className="eyebrow">Study Saver Dashboard</p>
-          <h1>Welcome, {user?.email}</h1>
-        </div>
+    <div className="sh-app">
+      <Sidebar
+        counts={resources.counts}
+        activeFilter={resources.filter}
+        onFilterChange={handleFilterChange}
+        onAddUrl={() => resources.setModalOpen(true)}
+      />
 
-        <button type="button" className="secondary-btn" onClick={() => logout()}>
-          Logout
-        </button>
-      </header>
-
-      {globalError ? <p className="form-error banner-error">{globalError}</p> : null}
-
-      <section className="dashboard-top-grid">
-        <StatsPanel stats={stats} />
-        <SaveItemForm loading={creating} onSave={handleCreate} />
-      </section>
-
-      <ItemFilters filters={filters} onFieldChange={handleFilterChange} onReset={handleResetFilters} />
-
-      <section className="dashboard-content-grid">
-        <div className="content-main">
-          <ItemList
-            items={items}
-            total={total}
-            loading={listLoading}
-            error={listError}
-            selectedItemId={selectedItem?.id || null}
-            onSelect={setSelectedItem}
-          />
-
-          <div className="pagination-row">
-            <button
-              type="button"
-              className="ghost-btn"
-              onClick={() => handleFilterChange("page", Math.max(1, filters.page - 1))}
-              disabled={filters.page <= 1 || listLoading}
-            >
-              Previous
-            </button>
-
-            <p>
-              Page {filters.page} of {totalPages}
-            </p>
-
-            <button
-              type="button"
-              className="ghost-btn"
-              onClick={() => handleFilterChange("page", Math.min(totalPages, filters.page + 1))}
-              disabled={filters.page >= totalPages || listLoading}
-            >
-              Next
-            </button>
-          </div>
-        </div>
-
-        <ItemDetailPanel
-          item={selectedItem}
-          saving={savingItem}
-          deleting={deletingItem}
-          onSave={handleSaveItem}
-          onDelete={handleDeleteItem}
+      <main className="main">
+        <Topbar
+          search={resources.search}
+          onSearchChange={resources.setSearch}
+          onAddUrl={() => resources.setModalOpen(true)}
         />
-      </section>
-    </main>
+
+        <div className="dashboard-workspace">
+          <div className="content">
+            {isResourceRoute ? (
+              <ResourceDetailView
+                resource={routeResource}
+                onStatusChange={resources.updateStatus}
+                onNotesChange={resources.updateNotes}
+              />
+            ) : (
+              <>
+                <div className="sec-hdr">
+                  <span className="sec-title">{FILTER_LABELS[resources.filter]}</span>
+                  <span className="sec-ct">{resources.filtered.length} saved</span>
+                </div>
+
+                <div className="fbar">
+                  <div className="ftabs" role="tablist" aria-label="Resource filters">
+                    {FILTERS.map((filter) => (
+                      <button
+                        type="button"
+                        key={filter.key}
+                        className={`ftab ${resources.filter === filter.key ? "on" : ""}`}
+                        onClick={() => handleFilterChange(filter.key)}
+                      >
+                        {filter.label} <span className="tab-ct">{resources.counts[filter.key]}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="vtog" aria-label="View mode">
+                    <button
+                      type="button"
+                      className={`vbtn ${resources.view === "grid" ? "on" : ""}`}
+                      onClick={() => resources.setView("grid")}
+                      title="Grid view"
+                      aria-label="Grid view"
+                    >
+                      <GridIcon size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className={`vbtn ${resources.view === "lst" ? "on" : ""}`}
+                      onClick={() => resources.setView("lst")}
+                      title="List view"
+                      aria-label="List view"
+                    >
+                      <ListIcon />
+                    </button>
+                  </div>
+                </div>
+
+                <div className={`resource-collection ${resources.view}`}>
+                  {resources.filtered.length ? (
+                    resources.filtered.map((resource, index) => (
+                      <ResourceCard key={resource.id} resource={resource} view={resources.view} index={index} />
+                    ))
+                  ) : (
+                    <div className="empty">
+                      <div className="empty-ico">+</div>
+                      <div className="empty-t">Nothing here yet</div>
+                      <div className="empty-s">Paste a URL above to save your first resource.</div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          <aside className="future-rail" aria-hidden="true" />
+        </div>
+      </main>
+
+      <AddURLModal
+        open={resources.modalOpen}
+        onClose={() => resources.setModalOpen(false)}
+        onSave={handleSaveResource}
+      />
+    </div>
   );
 }
