@@ -1,24 +1,28 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
-from jose import jwt
 
-from app.api.core.config import get_settings
 from app.api.core.exceptions import BadRequestError, UnauthorizedError
+from app.api.core.security import generate_jti, hash_token
+from app.models.oauth_state import OAuthState
 from app.services import auth_service
 
+OAUTH_COOKIE_VALUE = "oauth-cookie"
 
-def _google_state() -> str:
-    settings = get_settings()
-    return jwt.encode(
-        {
-            "type": "google_state",
-            "nonce": "test-nonce",
-            "exp": datetime.now(UTC) + timedelta(minutes=10),
-        },
-        settings.jwt_secret_key,
-        algorithm=settings.jwt_algorithm,
+
+def _google_state(db_session, client_type: str = "web") -> str:
+    state = generate_jti()
+    db_session.add(
+        OAuthState(
+            state_hash=hash_token(state),
+            client_type=client_type,
+            final_redirect_url="http://localhost:5173/oauth/callback",
+            cookie_hash=hash_token(OAUTH_COOKIE_VALUE) if client_type == "web" else None,
+            expires_at=datetime.now(UTC) + timedelta(minutes=10),
+        )
     )
+    db_session.commit()
+    return state
 
 
 def test_signup_rejects_non_gmail(db_session):
@@ -69,7 +73,8 @@ def test_google_callback_accepts_verified_gmail(db_session, monkeypatch):
     user, access_token, refresh_token = auth_service.google_callback(
         db_session,
         code="oauth-code",
-        state=_google_state(),
+        state=_google_state(db_session),
+        cookie_value=OAUTH_COOKIE_VALUE,
     )
 
     assert user.email == "alice@gmail.com"
@@ -92,7 +97,8 @@ def test_google_callback_rejects_non_gmail(db_session, monkeypatch):
         auth_service.google_callback(
             db_session,
             code="oauth-code",
-            state=_google_state(),
+            state=_google_state(db_session),
+            cookie_value=OAUTH_COOKIE_VALUE,
         )
 
 
@@ -106,10 +112,11 @@ def test_google_login_token_exchanges_once(db_session, monkeypatch):
 
     monkeypatch.setattr(auth_service, "_exchange_google_code", fake_exchange_google_code)
 
-    login_token = auth_service.create_google_login_token(
+    login_token, _, _ = auth_service.create_google_login_token(
         db_session,
         code="oauth-code",
-        state=_google_state(),
+        state=_google_state(db_session),
+        cookie_value=OAUTH_COOKIE_VALUE,
     )
 
     user, access_token, refresh_token = auth_service.exchange_google_login_token(db_session, login_token)
@@ -120,3 +127,49 @@ def test_google_login_token_exchanges_once(db_session, monkeypatch):
 
     with pytest.raises(UnauthorizedError):
         auth_service.exchange_google_login_token(db_session, login_token)
+
+
+def test_google_state_exchanges_once(db_session, monkeypatch):
+    def fake_exchange_google_code(_: str) -> dict:
+        return {
+            "sub": "google-user-4",
+            "email": "alice@gmail.com",
+            "email_verified": True,
+        }
+
+    monkeypatch.setattr(auth_service, "_exchange_google_code", fake_exchange_google_code)
+
+    state = _google_state(db_session)
+    auth_service.create_google_login_token(
+        db_session,
+        code="oauth-code",
+        state=state,
+        cookie_value=OAUTH_COOKIE_VALUE,
+    )
+
+    with pytest.raises(UnauthorizedError):
+        auth_service.create_google_login_token(
+            db_session,
+            code="oauth-code",
+            state=state,
+            cookie_value=OAUTH_COOKIE_VALUE,
+        )
+
+
+def test_google_state_requires_matching_cookie(db_session, monkeypatch):
+    def fake_exchange_google_code(_: str) -> dict:
+        return {
+            "sub": "google-user-5",
+            "email": "alice@gmail.com",
+            "email_verified": True,
+        }
+
+    monkeypatch.setattr(auth_service, "_exchange_google_code", fake_exchange_google_code)
+
+    with pytest.raises(UnauthorizedError):
+        auth_service.create_google_login_token(
+            db_session,
+            code="oauth-code",
+            state=_google_state(db_session),
+            cookie_value="wrong-cookie",
+        )

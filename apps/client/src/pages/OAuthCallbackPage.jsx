@@ -27,6 +27,7 @@ export default function OAuthCallbackPage() {
       }
 
       try {
+        window.history.replaceState({}, "", "/oauth/callback");
         await completeGoogleSignIn(token);
         if (!cancelled) {
           window.location.replace("/");

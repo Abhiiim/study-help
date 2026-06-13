@@ -36,7 +36,11 @@ export function logout(accessToken, payload) {
 }
 
 export function startGoogleOAuth() {
-  return apiRequest("/auth/google/start");
+  return apiRequest("/auth/google/start", {
+    query: {
+      client: "web",
+    },
+  });
 }
 
 export function completeGoogleOAuth(token) {

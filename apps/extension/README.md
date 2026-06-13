@@ -26,3 +26,19 @@ DASHBOARD_URL = "http://localhost:5173";
 ```
 
 To change these values, edit `shared/api.js`, then reload the extension from `chrome://extensions`.
+
+For Google sign-in, add the extension redirect origin to the server env:
+
+```env
+ALLOWED_EXTENSION_REDIRECT_ORIGINS='["https://<extension-id>.chromiumapp.org"]'
+```
+
+The redirect URL is available from the extension through `chrome.identity.getRedirectURL("oauth")`.
+
+## Smoke Checklist
+
+- Sign in with Google.
+- Sign in with email/password.
+- Save the current HTTP or HTTPS tab.
+- Save again after the access token expires to verify refresh.
+- Logout and confirm the popup returns to the signed-out view.

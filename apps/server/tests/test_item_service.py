@@ -80,3 +80,44 @@ def test_list_and_patch_item(db_session, monkeypatch):
 
     assert total == 1
     assert len(items) == 1
+
+
+def test_item_stats_are_scoped_to_user(db_session, monkeypatch):
+    first_user, _, _ = auth_service.signup(db_session, "alice@gmail.com", "strongpassword")
+    second_user, _, _ = auth_service.signup(db_session, "bob@gmail.com", "strongpassword")
+
+    def fake_parse_url(url: str) -> ParserResult:
+        source = "leetcode.com" if "leetcode" in url else "medium.com"
+        return ParserResult(
+            canonical_url=url,
+            source_site=source,
+            content_type="problem" if source == "leetcode.com" else "blog",
+            title=url,
+            snippet=None,
+            metadata_json={"fetched": False},
+        )
+
+    monkeypatch.setattr(item_service, "parse_url", fake_parse_url)
+
+    item_service.save_item(
+        db_session,
+        first_user,
+        ItemCreateRequest(url="https://leetcode.com/problems/a", is_favorite=True),
+    )
+    item_service.save_item(
+        db_session,
+        first_user,
+        ItemCreateRequest(url="https://medium.com/post"),
+    )
+    item_service.save_item(
+        db_session,
+        second_user,
+        ItemCreateRequest(url="https://leetcode.com/problems/b", is_favorite=True),
+    )
+
+    stats = item_service.get_item_stats(db_session, first_user)
+
+    assert stats["saved_count"] == 2
+    assert stats["favorite_count"] == 1
+    assert stats["source_count"] == 2
+    assert stats["top_sources"][0]["count"] == 1

@@ -44,3 +44,15 @@ class ItemListResponse(BaseModel):
     total: int
     page: int
     limit: int
+
+
+class SourceStat(BaseModel):
+    site: str
+    count: int
+
+
+class ItemStatsResponse(BaseModel):
+    saved_count: int
+    favorite_count: int
+    source_count: int
+    top_sources: list[SourceStat]

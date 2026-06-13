@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
@@ -22,7 +23,7 @@ class LoginRequest(BaseModel):
 
 
 class RefreshRequest(BaseModel):
-    refresh_token: str
+    refresh_token: str | None = None
     device_info: str | None = Field(default=None, max_length=255)
 
 
@@ -37,7 +38,16 @@ class TokenPair(BaseModel):
     token_type: str = "bearer"
 
 
+class AccessTokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+
 class AuthResponse(TokenPair):
+    user: UserOut
+
+
+class WebAuthResponse(AccessTokenResponse):
     user: UserOut
 
 
@@ -48,3 +58,6 @@ class GoogleStartResponse(BaseModel):
 
 class GoogleSessionRequest(BaseModel):
     token: str = Field(min_length=1)
+
+
+AuthClient = Literal["web", "extension"]

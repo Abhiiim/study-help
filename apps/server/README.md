@@ -25,6 +25,12 @@ DATABASE_URL="postgresql+psycopg2://postgres:postgres@localhost:5432/study_saver
 
 Create the `study_saver` database in PostgreSQL before starting the API.
 
+Run migrations:
+
+```bash
+alembic upgrade head
+```
+
 ## Run
 
 ```bash

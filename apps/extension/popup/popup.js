@@ -1,10 +1,12 @@
 import {
   DASHBOARD_URL,
   ApiError,
+  completeGoogleOAuth,
   getSession,
   loginWithPassword,
   logoutSession,
   requestWithAuth,
+  startGoogleOAuth,
 } from "../shared/api.js";
 
 const state = {
@@ -20,6 +22,7 @@ const elements = {
   loginForm: document.querySelector("#loginForm"),
   emailInput: document.querySelector("#emailInput"),
   passwordInput: document.querySelector("#passwordInput"),
+  googleButton: document.querySelector("#googleButton"),
   loginButton: document.querySelector("#loginButton"),
   accountEmail: document.querySelector("#accountEmail"),
   logoutButton: document.querySelector("#logoutButton"),
@@ -147,7 +150,22 @@ function render() {
 
 function setLoginBusy(isBusy) {
   elements.loginButton.disabled = isBusy;
+  elements.googleButton.disabled = isBusy;
   elements.loginButton.textContent = isBusy ? "Signing in..." : "Sign in";
+  elements.googleButton.textContent = isBusy ? "Signing in..." : "Continue with Google";
+}
+
+function launchWebAuthFlow(options) {
+  return new Promise((resolve, reject) => {
+    chrome.identity.launchWebAuthFlow(options, (redirectUrl) => {
+      const error = chrome.runtime.lastError;
+      if (error) {
+        reject(new Error(error.message));
+        return;
+      }
+      resolve(redirectUrl);
+    });
+  });
 }
 
 function setSaveBusy(isBusy) {
@@ -167,6 +185,32 @@ async function handleLogin(event) {
   try {
     state.session = await loginWithPassword(email, password);
     elements.passwordInput.value = "";
+    setStatus("Signed in.", "success");
+    render();
+  } catch (error) {
+    setStatus(toErrorMessage(error), "error");
+  } finally {
+    setLoginBusy(false);
+  }
+}
+
+async function handleGoogleLogin() {
+  setLoginBusy(true);
+  setStatus("Opening Google sign-in...", "info");
+
+  try {
+    const redirectUri = chrome.identity.getRedirectURL("oauth");
+    const payload = await startGoogleOAuth(redirectUri);
+    const redirectUrl = await launchWebAuthFlow({
+      url: payload.authorize_url,
+      interactive: true,
+    });
+    const token = new URL(redirectUrl).searchParams.get("token");
+    if (!token) {
+      throw new Error("Google sign-in did not return a login token.");
+    }
+
+    state.session = await completeGoogleOAuth(token);
     setStatus("Signed in.", "success");
     render();
   } catch (error) {
@@ -235,6 +279,7 @@ function openDashboard() {
 
 async function init() {
   elements.loginForm.addEventListener("submit", handleLogin);
+  elements.googleButton.addEventListener("click", handleGoogleLogin);
   elements.saveForm.addEventListener("submit", handleSave);
   elements.logoutButton.addEventListener("click", handleLogout);
   elements.dashboardButtons.forEach((button) => {

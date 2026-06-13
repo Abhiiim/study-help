@@ -15,10 +15,12 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    if settings.env == "test":
+        Base.metadata.create_all(bind=engine)
     yield
 
 
+settings.validate_runtime_settings()
 setup_logging()
 app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)
 

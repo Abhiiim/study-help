@@ -7,6 +7,12 @@ export function listItems(accessToken, filters = {}) {
   });
 }
 
+export function fetchItemStats(accessToken) {
+  return apiRequest("/items/stats", {
+    token: accessToken,
+  });
+}
+
 export function createItem(accessToken, payload) {
   return apiRequest("/items", {
     method: "POST",

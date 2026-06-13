@@ -112,6 +112,32 @@ def list_items(
     return items, total
 
 
+def get_item_stats(db: Session, user: User) -> dict:
+    user_filter = SavedItem.user_id == user.id
+
+    saved_count = db.scalar(select(func.count(SavedItem.id)).where(user_filter)) or 0
+    favorite_count = db.scalar(
+        select(func.count(SavedItem.id)).where(and_(user_filter, SavedItem.is_favorite.is_(True)))
+    ) or 0
+    source_count = db.scalar(select(func.count(func.distinct(SavedItem.source_site))).where(user_filter)) or 0
+
+    count_expr = func.count(SavedItem.id)
+    top_sources = db.execute(
+        select(SavedItem.source_site, count_expr.label("count"))
+        .where(user_filter)
+        .group_by(SavedItem.source_site)
+        .order_by(desc(count_expr), asc(SavedItem.source_site))
+        .limit(5)
+    ).all()
+
+    return {
+        "saved_count": saved_count,
+        "favorite_count": favorite_count,
+        "source_count": source_count,
+        "top_sources": [{"site": site, "count": count} for site, count in top_sources],
+    }
+
+
 def get_item_or_404(db: Session, user: User, item_id: int) -> SavedItem:
     item = db.scalar(
         select(SavedItem).where(and_(SavedItem.id == item_id, SavedItem.user_id == user.id))

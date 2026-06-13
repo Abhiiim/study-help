@@ -63,6 +63,7 @@ export async function apiRequest(path, options = {}) {
     method,
     headers: requestHeaders,
     body: requestBody,
+    credentials: "include",
   });
 
   if (response.status === 204) {

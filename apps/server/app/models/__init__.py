@@ -1,5 +1,7 @@
+from app.models.oauth_login_token import OAuthLoginToken
+from app.models.oauth_state import OAuthState
 from app.models.refresh_token import RefreshToken
 from app.models.saved_item import SavedItem
 from app.models.user import User
 
-__all__ = ["User", "RefreshToken", "SavedItem"]
+__all__ = ["User", "RefreshToken", "SavedItem", "OAuthLoginToken", "OAuthState"]

@@ -9,6 +9,8 @@ const STORAGE_KEYS = {
   email: "study_saver_extension_user_email",
 };
 
+let refreshPromise = null;
+
 export class ApiError extends Error {
   constructor(message, status, code = null) {
     super(message);
@@ -57,9 +59,20 @@ function storageRemove(keys) {
   });
 }
 
-function buildApiUrl(path) {
+function buildApiUrl(path, query) {
   const cleanPath = path.startsWith("/") ? path.slice(1) : path;
-  return new URL(cleanPath, API_BASE);
+  const url = new URL(cleanPath, API_BASE);
+
+  if (query && typeof query === "object") {
+    Object.entries(query).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") {
+        return;
+      }
+      url.searchParams.set(key, String(value));
+    });
+  }
+
+  return url;
 }
 
 function parseApiError(payload, status) {
@@ -74,7 +87,7 @@ function parseApiError(payload, status) {
 }
 
 async function apiRequest(path, options = {}) {
-  const { method = "GET", token, body } = options;
+  const { method = "GET", token, body, query } = options;
   const headers = {
     Accept: "application/json",
   };
@@ -89,7 +102,7 @@ async function apiRequest(path, options = {}) {
     requestBody = JSON.stringify(body);
   }
 
-  const response = await fetch(buildApiUrl(path), {
+  const response = await fetch(buildApiUrl(path, query), {
     method,
     headers,
     body: requestBody,
@@ -136,13 +149,20 @@ async function storeAuthResponse(payload) {
 export async function loginWithPassword(email, password) {
   const payload = await apiRequest("/auth/login", {
     method: "POST",
+    query: {
+      client: "extension",
+    },
     body: { email, password },
   });
   return storeAuthResponse(payload);
 }
 
 export async function refreshSession(refreshToken) {
-  try {
+  if (refreshPromise) {
+    return refreshPromise;
+  }
+
+  refreshPromise = (async () => {
     const payload = await apiRequest("/auth/refresh", {
       method: "POST",
       body: {
@@ -151,10 +171,35 @@ export async function refreshSession(refreshToken) {
       },
     });
     return storeAuthResponse(payload);
+  })();
+
+  try {
+    return await refreshPromise;
   } catch (error) {
     await clearSession();
     throw error;
+  } finally {
+    refreshPromise = null;
   }
+}
+
+export function startGoogleOAuth(extensionRedirectUri) {
+  return apiRequest("/auth/google/start", {
+    query: {
+      client: "extension",
+      extension_redirect_uri: extensionRedirectUri,
+    },
+  });
+}
+
+export async function completeGoogleOAuth(token) {
+  const payload = await apiRequest("/auth/extension/google/session", {
+    method: "POST",
+    body: {
+      token,
+    },
+  });
+  return storeAuthResponse(payload);
 }
 
 export async function requestWithAuth(path, options = {}) {

@@ -5,7 +5,7 @@ import ItemFilters from "../components/ItemFilters";
 import ItemList from "../components/ItemList";
 import SaveItemForm from "../components/SaveItemForm";
 import StatsPanel from "../components/StatsPanel";
-import { createItem, deleteItem, listItems, updateItem } from "../api/itemsApi";
+import { createItem, deleteItem, fetchItemStats, listItems, updateItem } from "../api/itemsApi";
 import { useAuth } from "../contexts/AuthContext";
 import { useDebouncedValue } from "../hooks/useDebouncedValue";
 
@@ -90,34 +90,13 @@ export default function DashboardPage() {
 
   const loadStats = useCallback(async () => {
     try {
-      const payload = await withAuth((accessToken) =>
-        listItems(accessToken, {
-          page: 1,
-          limit: 100,
-          sort: "recent",
-        }),
-      );
-
-      const bySite = {};
-      let favoriteCount = 0;
-
-      payload.items.forEach((item) => {
-        bySite[item.source_site] = (bySite[item.source_site] || 0) + 1;
-        if (item.is_favorite) {
-          favoriteCount += 1;
-        }
-      });
-
-      const topSites = Object.entries(bySite)
-        .map(([site, count]) => ({ site, count }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 5);
+      const payload = await withAuth((accessToken) => fetchItemStats(accessToken));
 
       setStats({
-        savedCount: payload.total,
-        favoriteCount,
-        sourceCount: Object.keys(bySite).length,
-        topSites,
+        savedCount: payload.saved_count,
+        favoriteCount: payload.favorite_count,
+        sourceCount: payload.source_count,
+        topSites: payload.top_sources,
       });
     } catch (error) {
       setGlobalError(toErrorMessage(error));

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.api.core.auth import get_current_user
 from app.db.session import get_db
 from app.models.user import User
-from app.schemas.item import ItemCreateRequest, ItemListResponse, ItemOut, ItemUpdateRequest
+from app.schemas.item import ItemCreateRequest, ItemListResponse, ItemOut, ItemStatsResponse, ItemUpdateRequest
 from app.services import item_service
 
 router = APIRouter(prefix="/items", tags=["Items"])
@@ -51,6 +51,14 @@ def get_items(
         page=page,
         limit=limit,
     )
+
+
+@router.get("/stats", response_model=ItemStatsResponse)
+def get_item_stats(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ItemStatsResponse:
+    return ItemStatsResponse.model_validate(item_service.get_item_stats(db, current_user))
 
 
 @router.get("/{item_id}", response_model=ItemOut)

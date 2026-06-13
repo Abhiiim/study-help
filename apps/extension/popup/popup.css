@@ -76,6 +76,24 @@ h1 {
   gap: 12px;
 }
 
+.divider {
+  align-items: center;
+  color: #667085;
+  display: flex;
+  font-size: 12px;
+  font-weight: 800;
+  gap: 10px;
+  text-transform: uppercase;
+}
+
+.divider::before,
+.divider::after {
+  background: #d0d5dd;
+  content: "";
+  flex: 1;
+  height: 1px;
+}
+
 label {
   color: #344054;
   display: flex;
