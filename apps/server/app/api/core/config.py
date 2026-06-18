@@ -27,6 +27,7 @@ class Settings(BaseSettings):
     google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
 
     frontend_oauth_callback_url: str = "http://localhost:5173/oauth/callback"
+    frontend_url: str = "http://localhost:5173/dashboard"
     allowed_extension_redirect_origins: list[str] = Field(default_factory=list)
 
     refresh_cookie_name: str = "study_saver_refresh"

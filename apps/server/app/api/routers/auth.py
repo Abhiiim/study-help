@@ -18,10 +18,19 @@ from app.schemas.auth import (
     LogoutRequest,
     RefreshRequest,
     SignupRequest,
+    SignupResponse,
     UserOut,
     WebAuthResponse,
 )
-from app.services import auth_service
+
+from app.services.auth_service.google_callback import create_google_login_token
+from app.services.auth_service.google_start import generate_oauth_cookie_value, google_start
+from app.services.auth_service.google_session import exchange_google_login_token
+from app.services.auth_service.signup import signup
+from app.services.auth_service.login import login
+from app.services.auth_service.refresh_tokens import refresh_tokens
+from app.services.auth_service.logout import logout_by_refresh_token
+from app.services.auth_service.email_verification_service import verify_email
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -124,32 +133,31 @@ def _validated_extension_redirect_uri(value: str | None) -> str:
     return value
 
 
-@router.post("/signup", response_model=AuthResponse | WebAuthResponse, status_code=status.HTTP_201_CREATED)
-def signup(
+@router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
+def signup_route(
     payload: SignupRequest,
-    request: Request,
-    response: Response,
-    client: AuthClient = Query(default="web"),
     db: Session = Depends(get_db),
-) -> AuthResponse | WebAuthResponse:
-    user, access_token, refresh_token = auth_service.signup(
+):
+    user = signup(
         db,
         payload.email,
         payload.password,
-        device_info=_device_from_request(request),
     )
-    return _build_auth_response(user, access_token, refresh_token, response, client)
 
+    return SignupResponse(
+        message="Verification email sent",
+        email=user.email,
+    )
 
 @router.post("/login", response_model=AuthResponse | WebAuthResponse)
-def login(
+def login_route(
     payload: LoginRequest,
     request: Request,
     response: Response,
     client: AuthClient = Query(default="web"),
     db: Session = Depends(get_db),
 ) -> AuthResponse | WebAuthResponse:
-    user, access_token, refresh_token = auth_service.login(
+    user, access_token, refresh_token = login(
         db,
         payload.email,
         payload.password,
@@ -158,8 +166,25 @@ def login(
     return _build_auth_response(user, access_token, refresh_token, response, client)
 
 
+@router.get("/verify-email")
+def verify_email_route(
+    token: str,
+    db: Session = Depends(get_db),
+):
+    verify_email(
+        db=db,
+        token=token,
+    )
+
+    settings = get_settings()
+
+    return RedirectResponse(
+        f"{settings.frontend_url}/login?verified=true"
+    )
+
+
 @router.get("/google/start", response_model=GoogleStartResponse)
-def google_start(
+def google_start_route(
     response: Response,
     client: AuthClient = Query(default="web"),
     extension_redirect_uri: str | None = Query(default=None),
@@ -170,9 +195,9 @@ def google_start(
         cookie_value = None
     else:
         final_redirect_url = get_settings().frontend_oauth_callback_url
-        cookie_value = auth_service.generate_oauth_cookie_value()
+        cookie_value = generate_oauth_cookie_value()
 
-    authorize_url, state_value = auth_service.google_start(
+    authorize_url, state_value = google_start(
         db,
         client_type=client,
         final_redirect_url=final_redirect_url,
@@ -186,7 +211,7 @@ def google_start(
 
 
 @router.get("/google/callback")
-def google_callback(
+def google_callback_route(
     request: Request,
     code: str = Query(..., min_length=1),
     state: str = Query(..., min_length=1),
@@ -194,7 +219,7 @@ def google_callback(
 ) -> RedirectResponse:
     settings = get_settings()
     cookie_value = request.cookies.get(settings.oauth_state_cookie_name)
-    login_token, final_redirect_url, client_type = auth_service.create_google_login_token(
+    login_token, final_redirect_url, client_type = create_google_login_token(
         db,
         code=code,
         state=state,
@@ -217,7 +242,7 @@ def google_session(
     response: Response,
     db: Session = Depends(get_db),
 ) -> WebAuthResponse:
-    user, access_token, refresh_token = auth_service.exchange_google_login_token(
+    user, access_token, refresh_token = exchange_google_login_token(
         db,
         token=payload.token,
         device_info=_device_from_request(request),
@@ -232,7 +257,7 @@ def extension_google_session(
     request: Request,
     db: Session = Depends(get_db),
 ) -> AuthResponse:
-    user, access_token, refresh_token = auth_service.exchange_google_login_token(
+    user, access_token, refresh_token = exchange_google_login_token(
         db,
         token=payload.token,
         device_info=_device_from_request(request),
@@ -256,7 +281,7 @@ def refresh(
     if not refresh_token:
         raise UnauthorizedError("Refresh token is required")
 
-    user, access_token, new_refresh_token = auth_service.refresh_tokens(
+    user, access_token, new_refresh_token = refresh_tokens(
         db,
         refresh_token,
         payload.device_info if payload else _device_from_request(request),
@@ -285,7 +310,7 @@ def logout(
     logout_all = payload.logout_all if payload else False
 
     if refresh_token:
-        auth_service.logout_by_refresh_token(db, refresh_token=refresh_token, logout_all=logout_all)
+        logout_by_refresh_token(db, refresh_token=refresh_token, logout_all=logout_all)
 
     _clear_refresh_cookie(response)
 

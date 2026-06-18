@@ -1,7 +1,8 @@
+import re
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
 class UserOut(BaseModel):
@@ -15,6 +16,26 @@ class UserOut(BaseModel):
 class SignupRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value):
+        if len(value) < 8:
+            raise ValueError("Password must contain at least 8 characters")
+
+        if not re.search(r"[A-Z]", value):
+            raise ValueError("Password must contain an uppercase letter")
+
+        if not re.search(r"[a-z]", value):
+            raise ValueError("Password must contain a lowercase letter")
+
+        if not re.search(r"\d", value):
+            raise ValueError("Password must contain a digit")
+
+        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
+            raise ValueError("Password must contain a special character")
+
+        return value
 
 
 class LoginRequest(BaseModel):
@@ -42,6 +63,10 @@ class AccessTokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
+
+class SignupResponse(BaseModel):
+    message: str
+    email: EmailStr
 
 class AuthResponse(TokenPair):
     user: UserOut
