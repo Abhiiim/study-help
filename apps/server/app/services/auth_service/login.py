@@ -31,11 +31,9 @@ def _authenticate(db: Session, email: str, password: str) -> User:
             code="invalid_credentials",
         )
 
-    if not verify_password(password, user.password_hash):
-        raise UnauthorizedError(
-            "Invalid email or password",
-            code="invalid_credentials",
-        )
+    # TODO: Need to add account linking later on.
+    if not user.password_hash:
+        raise UnauthorizedError("Use Google sign-in for this account")
 
     if not user.is_active:
         raise UnauthorizedError(
@@ -49,8 +47,10 @@ def _authenticate(db: Session, email: str, password: str) -> User:
             code="email_not_verified",
         )
 
-    #TODO: Need to add account linking later on
-    if not user.password_hash:
-        raise UnauthorizedError("Use Google sign-in for this account")
+    if not verify_password(password, user.password_hash):
+        raise UnauthorizedError(
+            "Invalid email or password",
+            code="invalid_credentials",
+        )
 
     return user

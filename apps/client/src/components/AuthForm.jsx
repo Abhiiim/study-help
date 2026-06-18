@@ -11,6 +11,7 @@ export default function AuthForm({
   mode,
   loading,
   error,
+  notice,
   onModeChange,
   onSubmit,
   onGoogleSignIn,
@@ -109,6 +110,7 @@ export default function AuthForm({
         ) : null}
 
         {activeError ? <p className="form-error">{activeError}</p> : null}
+        {!activeError && notice ? <p className="form-success">{notice}</p> : null}
 
         <button type="submit" className="primary-btn" disabled={loading}>
           {loading ? "Please wait..." : submitLabel}

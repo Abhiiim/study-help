@@ -5,11 +5,11 @@ from sqlalchemy.orm import Session
 from app.api.core.exceptions import ConflictError
 from app.api.core.security import hash_password
 from app.models.user import User
-from app.helpers.auth_helper import ensure_gmail, issue_token_pair, normalize_email
+from app.helpers.auth_helper import ensure_gmail, normalize_email
 from app.services.auth_service.email_verification_service import create_email_verification_token, send_verification_email
 
 
-def signup(db: Session, email: str, password: str, device_info: str | None = None) -> tuple[User, str, str]:
+def signup(db: Session, email: str, password: str, device_info: str | None = None) -> User:
     email = normalize_email(email)
     ensure_gmail(email)
 
@@ -26,9 +26,9 @@ def signup(db: Session, email: str, password: str, device_info: str | None = Non
         db.rollback()
         raise ConflictError("Email is already registered", code="email_exists") from exc
 
-    token = create_email_verification_token(user)
+    token = create_email_verification_token(db, user)
 
-    send_verification_email(user.email, token)
+    send_verification_email(user, token)
 
     db.commit()
 

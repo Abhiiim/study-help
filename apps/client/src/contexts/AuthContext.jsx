@@ -73,10 +73,9 @@ export function AuthProvider({ children }) {
   const signup = useCallback(
     async ({ email, password }) => {
       const payload = await signupRequest({ email, password });
-      applyAuthResponse(payload);
-      return payload.user;
+      return payload;
     },
-    [applyAuthResponse],
+    [],
   );
 
   const login = useCallback(

@@ -1,23 +1,24 @@
-from datetime import timedelta, datetime
+from datetime import UTC, datetime, timedelta
 import secrets
 
-from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
-from app.models import EmailVerificationToken
-from app.models import User
-from app.api.core.security import hash_token
+
 from app.api.core.config import get_settings
-from apps.server.app.main import settings
+from app.api.core.exceptions import BadRequestError
+from app.api.core.security import hash_token
+from app.helpers.auth_helper import as_aware_utc
+from app.models import EmailVerificationToken, User
+from app.services.notification_service.email_service import send_email
 
 
-def create_email_verification_token(db: Session, user: User):
+def create_email_verification_token(db: Session, user: User) -> str:
     token = secrets.token_urlsafe(32)
 
     verification = EmailVerificationToken(
         user_id=user.id,
         token_hash=hash_token(token),
-        expires_at=datetime.utcnow() + timedelta(hours=24),
+        expires_at=datetime.now(UTC) + timedelta(hours=24),
     )
     db.add(verification)
 
@@ -27,12 +28,12 @@ def create_email_verification_token(db: Session, user: User):
 def send_verification_email(
     user: User,
     token: str,
-):
+) -> None:
     settings = get_settings()
 
     verification_url = (
-        f"{settings.frontend_url}"
-        f"/verify-email?token={token}"
+        f"{settings.api_public_url.rstrip('/')}"
+        f"{settings.api_v1_prefix}/auth/verify-email?token={token}"
     )
 
     html = f"""
@@ -59,7 +60,7 @@ def send_verification_email(
 def verify_email(
     db: Session,
     token: str,
-):
+) -> None:
     token_hash = hash_token(token)
 
     verification = db.scalar(
@@ -70,18 +71,19 @@ def verify_email(
     )
 
     if verification is None:
-        raise ValidationError("Invalid token")
+        raise BadRequestError("Invalid verification token", code="invalid_verification_token")
 
     if verification.used_at:
-        raise ValidationError("Already used")
+        raise BadRequestError("Verification token was already used", code="verification_token_used")
 
-    if verification.expires_at < datetime.utcnow():
-        raise ValidationError("Expired token")
+    now = datetime.now(UTC)
+    if as_aware_utc(verification.expires_at) < now:
+        raise BadRequestError("Verification token has expired", code="verification_token_expired")
 
-    verification.used_at = datetime.utcnow()
+    verification.used_at = now
 
     user = verification.user
     user.is_email_verified = True
-    user.email_verified_at = datetime.utcnow()
+    user.email_verified_at = now
 
     db.commit()

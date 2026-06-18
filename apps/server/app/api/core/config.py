@@ -2,7 +2,7 @@ from functools import lru_cache
 from typing import Literal
 from urllib.parse import urlparse
 
-from pydantic import Field
+from pydantic import EmailStr, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -27,7 +27,8 @@ class Settings(BaseSettings):
     google_redirect_uri: str = "http://localhost:8000/api/v1/auth/google/callback"
 
     frontend_oauth_callback_url: str = "http://localhost:5173/oauth/callback"
-    frontend_url: str = "http://localhost:5173/dashboard"
+    frontend_url: str = "http://localhost:5173"
+    api_public_url: str = "http://localhost:8000"
     allowed_extension_redirect_origins: list[str] = Field(default_factory=list)
 
     refresh_cookie_name: str = "study_saver_refresh"
@@ -38,6 +39,12 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
     cors_origin_regex: str | None = r"^chrome-extension://[a-z]{32}$"
+
+    SMTP_HOST: str
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str
+    SMTP_PASSWORD: str
+    SMTP_FROM: str
 
     def validate_runtime_settings(self) -> None:
         errors: list[str] = []
@@ -63,6 +70,8 @@ class Settings(BaseSettings):
         for name, value in {
             "GOOGLE_REDIRECT_URI": self.google_redirect_uri,
             "FRONTEND_OAUTH_CALLBACK_URL": self.frontend_oauth_callback_url,
+            "FRONTEND_URL": self.frontend_url,
+            "API_PUBLIC_URL": self.api_public_url,
         }.items():
             if not _is_http_url(value):
                 errors.append(f"{name} must be an absolute http(s) URL")

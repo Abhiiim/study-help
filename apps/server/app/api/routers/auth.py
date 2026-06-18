@@ -133,7 +133,7 @@ def _validated_extension_redirect_uri(value: str | None) -> str:
     return value
 
 
-@router.post("/signup", response_model=SignupResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/signup", response_model=SignupResponse)
 def signup_route(
     payload: SignupRequest,
     db: Session = Depends(get_db),

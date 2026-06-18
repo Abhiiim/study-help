@@ -145,8 +145,16 @@ def complete_google_user(db: Session, code: str) -> User:
     if user is None:
         user = db.scalar(select(User).where(User.email == email))
 
+    now = datetime.now(UTC)
     if user is None:
-        user = User(email=email, password_hash=None, google_sub=sub, is_active=True)
+        user = User(
+            email=email,
+            password_hash=None,
+            google_sub=sub,
+            is_active=True,
+            is_email_verified=True,
+            email_verified_at=now,
+        )
         db.add(user)
         try:
             db.flush()
@@ -155,6 +163,10 @@ def complete_google_user(db: Session, code: str) -> User:
             raise ConflictError("A user with this email already exists", code="email_exists") from exc
     elif user.google_sub is None:
         user.google_sub = sub
+
+    if not user.is_email_verified:
+        user.is_email_verified = True
+        user.email_verified_at = now
 
     db.commit()
     db.refresh(user)

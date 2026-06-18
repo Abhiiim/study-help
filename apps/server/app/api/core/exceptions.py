@@ -18,8 +18,8 @@ class ApiError(Exception):
 
 
 class UnauthorizedError(ApiError):
-    def __init__(self, message: str = "Unauthorized"):
-        super().__init__(message=message, code="unauthorized", status_code=status.HTTP_401_UNAUTHORIZED)
+    def __init__(self, message: str = "Unauthorized", code: str = "unauthorized"):
+        super().__init__(message=message, code=code, status_code=status.HTTP_401_UNAUTHORIZED)
 
 
 class ForbiddenError(ApiError):
