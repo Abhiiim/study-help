@@ -1,22 +1,24 @@
 from datetime import UTC, datetime, timedelta
 import secrets
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.orm import Session
 
 from app.api.core.config import get_settings
 from app.api.core.exceptions import BadRequestError
 from app.api.core.security import hash_token
 from app.helpers.auth_helper import as_aware_utc
-from app.models import EmailVerificationToken, User
+from app.models import AuthToken, User
 from app.services.notification_service.email_service import send_email
+from app.enums.auth_token import TokenType
 
 
 def create_email_verification_token(db: Session, user: User) -> str:
     token = secrets.token_urlsafe(32)
 
-    verification = EmailVerificationToken(
+    verification = AuthToken(
         user_id=user.id,
+        type=TokenType.EMAIL_VERIFICATION,
         token_hash=hash_token(token),
         expires_at=datetime.now(UTC) + timedelta(hours=24),
     )
@@ -64,10 +66,11 @@ def verify_email(
     token_hash = hash_token(token)
 
     verification = db.scalar(
-        select(EmailVerificationToken)
-        .where(
-            EmailVerificationToken.token_hash == token_hash
-        )
+        select(AuthToken)
+        .where(and_(
+            AuthToken.token_hash == token_hash,
+            AuthToken.type == TokenType.EMAIL_VERIFICATION
+        ))
     )
 
     if verification is None:

@@ -17,7 +17,7 @@ from app.api.core.security import (
     hash_token,
     verify_password,
 )
-from app.models.oauth_login_token import OAuthLoginToken
+from app.models.auth_token import AuthToken
 from app.models.oauth_state import OAuthState
 from app.models.refresh_token import RefreshToken
 from app.models.user import User
@@ -67,7 +67,7 @@ def as_aware_utc(value: datetime) -> datetime:
 def delete_expired_oauth_records(db: Session) -> None:
     now = datetime.now(UTC)
     db.execute(delete(OAuthState).where(OAuthState.expires_at <= now))
-    db.execute(delete(OAuthLoginToken).where(OAuthLoginToken.expires_at <= now))
+    db.execute(delete(AuthToken).where(AuthToken.expires_at <= now))
 
 
 def consume_google_state(db: Session, state: str, cookie_value: str | None = None) -> tuple[str, str]:

@@ -13,16 +13,12 @@ class UserOut(BaseModel):
     created_at: datetime
 
 
-class SignupRequest(BaseModel):
-    email: EmailStr
+class Password(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
     @field_validator("password")
     @classmethod
     def validate_password(cls, value):
-        if len(value) < 8:
-            raise ValueError("Password must contain at least 8 characters")
-
         if not re.search(r"[A-Z]", value):
             raise ValueError("Password must contain an uppercase letter")
 
@@ -37,11 +33,17 @@ class SignupRequest(BaseModel):
 
         return value
 
+class SignupRequest(Password):
+    email: EmailStr
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8, max_length=128)
 
+
+class ResetPassword(Password):
+    token: str
 
 class RefreshRequest(BaseModel):
     refresh_token: str | None = None

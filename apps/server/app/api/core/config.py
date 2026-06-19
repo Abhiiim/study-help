@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     api_v1_prefix: str = "/api/v1"
 
-    database_url: str
+    database_url: str = ""
 
     jwt_secret_key: str = "change-me"
     jwt_algorithm: str = "HS256"
@@ -40,11 +40,11 @@ class Settings(BaseSettings):
     cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
     cors_origin_regex: str | None = r"^chrome-extension://[a-z]{32}$"
 
-    SMTP_HOST: str
+    SMTP_HOST: str = ""
     SMTP_PORT: int = 587
-    SMTP_USERNAME: str
-    SMTP_PASSWORD: str
-    SMTP_FROM: str
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM: str = ""
 
     def validate_runtime_settings(self) -> None:
         errors: list[str] = []

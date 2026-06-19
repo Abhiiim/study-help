@@ -9,7 +9,7 @@ from app.helpers.auth_helper import ensure_gmail, normalize_email
 from app.services.auth_service.email_verification_service import create_email_verification_token, send_verification_email
 
 
-def signup(db: Session, email: str, password: str, device_info: str | None = None) -> User:
+def signup(db: Session, email: str, password: str) -> User:
     email = normalize_email(email)
     ensure_gmail(email)
 

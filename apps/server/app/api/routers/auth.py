@@ -2,6 +2,7 @@ from urllib.parse import urlencode, urlparse
 
 from fastapi import APIRouter, Body, Depends, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
+from pydantic import EmailStr
 from sqlalchemy.orm import Session
 
 from app.api.core.auth import get_current_user
@@ -17,6 +18,7 @@ from app.schemas.auth import (
     LoginRequest,
     LogoutRequest,
     RefreshRequest,
+    ResetPassword,
     SignupRequest,
     SignupResponse,
     UserOut,
@@ -31,6 +33,7 @@ from app.services.auth_service.login import login
 from app.services.auth_service.refresh_tokens import refresh_tokens
 from app.services.auth_service.logout import logout_by_refresh_token
 from app.services.auth_service.email_verification_service import verify_email
+from app.services.auth_service.reset_password import forgot_password, reset_password
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -180,6 +183,34 @@ def verify_email_route(
 
     return RedirectResponse(
         f"{settings.frontend_url}/login?verified=true"
+    )
+
+
+@router.post("/forgot-password")
+def forgot_password_route(
+    email: EmailStr,
+    db: Session = Depends(get_db),
+):
+    forgot_password(
+        db=db,
+        email=email
+    )
+
+    return {
+        "message":
+        "If an account exists, a reset email has been sent."
+    }
+
+
+@router.post("/reset-password")
+def reset_password_route(
+    reset_password_req: ResetPassword,
+    db: Session = Depends(get_db),
+):
+    reset_password(
+        db=db,
+        token=reset_password_req.token,
+        new_password=reset_password_req.password
     )
 
 

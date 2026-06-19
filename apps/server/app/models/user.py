@@ -19,5 +19,5 @@ class User(Base, TimestampMixin):
     email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    auth_tokens = relationship("AuthToken", back_populates="user", cascade="all, delete-orphan")
     items = relationship("SavedItem", back_populates="user", cascade="all, delete-orphan")
-    email_verification_tokens = relationship("EmailVerificationToken", back_populates="user", cascade="all, delete-orphan")

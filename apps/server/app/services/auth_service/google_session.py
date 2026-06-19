@@ -6,9 +6,10 @@ from app.api.core.exceptions import UnauthorizedError
 from app.api.core.security import (
     hash_token,
 )
-from app.models.oauth_login_token import OAuthLoginToken
+from app.models.auth_token import AuthToken
 from app.models.user import User
 from app.helpers.auth_helper import as_aware_utc, issue_token_pair
+from app.enums.auth_token import TokenType
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -22,7 +23,13 @@ def exchange_google_login_token(
     token: str,
     device_info: str | None = None,
 ) -> tuple[User, str, str]:
-    token_record = db.scalar(select(OAuthLoginToken).where(OAuthLoginToken.token_hash == hash_token(token)))
+    token_record = db.scalar(
+        select(AuthToken)
+        .where(and_(
+            AuthToken.token_hash == hash_token(token),
+            AuthToken.type == TokenType.OAUTH_LOGIN
+        ))
+    )
     now = datetime.now(UTC)
 
     if token_record is None or token_record.used_at is not None:
@@ -32,8 +39,12 @@ def exchange_google_login_token(
         raise UnauthorizedError("OAuth login token has expired")
 
     consumed = db.execute(
-        update(OAuthLoginToken)
-        .where(and_(OAuthLoginToken.id == token_record.id, OAuthLoginToken.used_at.is_(None)))
+        update(AuthToken)
+        .where(and_(
+            AuthToken.id == token_record.id, 
+            AuthToken.type == TokenType.OAUTH_LOGIN,
+            AuthToken.used_at.is_(None)
+        ))
         .values(used_at=now)
     )
     if consumed.rowcount != 1:

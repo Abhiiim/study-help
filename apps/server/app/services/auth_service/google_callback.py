@@ -5,9 +5,10 @@ from app.api.core.security import (
     generate_jti,
     hash_token,
 )
-from app.models.oauth_login_token import OAuthLoginToken
+from app.models.auth_token import AuthToken
 from app.models.user import User
 from app.helpers.auth_helper import complete_google_user, consume_google_state, delete_expired_oauth_records, issue_token_pair
+from app.enums.auth_token import TokenType
 
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
@@ -41,8 +42,9 @@ def create_google_login_token(
     delete_expired_oauth_records(db)
     token = generate_jti()
     db.add(
-        OAuthLoginToken(
+        AuthToken(
             user_id=user.id,
+            type=TokenType.OAUTH_LOGIN,
             token_hash=hash_token(token),
             expires_at=datetime.now(UTC) + timedelta(minutes=OAUTH_LOGIN_TOKEN_EXPIRE_MINUTES),
         )
