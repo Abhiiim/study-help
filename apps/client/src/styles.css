@@ -299,6 +299,39 @@ p {
   line-height: 1.45;
 }
 
+.auth-forgot-link {
+  align-self: flex-end;
+  color: var(--accent);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: -4px;
+}
+
+.auth-forgot-link:hover {
+  text-decoration: underline;
+}
+
+.auth-back-link {
+  text-align: center;
+  color: var(--t2);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.auth-back-link:hover {
+  color: var(--accent);
+}
+
+.text-center {
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
 .sh-app {
   height: 100%;
   display: flex;

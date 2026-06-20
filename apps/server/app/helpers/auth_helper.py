@@ -146,6 +146,9 @@ def complete_google_user(db: Session, code: str) -> User:
         user = db.scalar(select(User).where(User.email == email))
 
     now = datetime.now(UTC)
+    if user is not None and not user.is_active:
+        raise UnauthorizedError("Account is disabled")
+
     if user is None:
         user = User(
             email=email,

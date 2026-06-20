@@ -51,3 +51,17 @@ export function completeGoogleOAuth(token) {
     },
   });
 }
+
+export function forgotPassword(email) {
+  return apiRequest("/auth/forgot-password", {
+    method: "POST",
+    query: { email },
+  });
+}
+
+export function resetPassword({ token, password }) {
+  return apiRequest("/auth/reset-password", {
+    method: "POST",
+    body: { token, password },
+  });
+}

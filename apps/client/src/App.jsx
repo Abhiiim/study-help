@@ -2,7 +2,9 @@ import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-route
 
 import AuthPage from "./pages/AuthPage";
 import DashboardPage from "./pages/DashboardPage";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import OAuthCallbackPage from "./pages/OAuthCallbackPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import { useAuth } from "./contexts/AuthContext";
 
 function LoadingScreen() {
@@ -68,6 +70,22 @@ function AppRoutes() {
         }
       />
       <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+      <Route
+        path="/forgot-password"
+        element={
+          <GuestRoute>
+            <ForgotPasswordPage />
+          </GuestRoute>
+        }
+      />
+      <Route
+        path="/reset-password"
+        element={
+          <GuestRoute>
+            <ResetPasswordPage />
+          </GuestRoute>
+        }
+      />
       <Route
         path="/dashboard/*"
         element={

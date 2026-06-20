@@ -1,50 +1,38 @@
 import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { useAuth } from "../contexts/AuthContext";
 
 export default function OAuthCallbackPage() {
   const { completeGoogleSignIn } = useAuth();
+  const navigate = useNavigate();
   const [error, setError] = useState("");
   const hasStarted = useRef(false);
 
   useEffect(() => {
-    if (hasStarted.current) {
-      return undefined;
-    }
-
+    if (hasStarted.current) return;
     hasStarted.current = true;
-    let cancelled = false;
 
     async function finishOAuth() {
       const params = new URLSearchParams(window.location.search);
       const token = params.get("token");
 
       if (!token) {
-        if (!cancelled) {
-          setError("Google callback is missing required parameters.");
-        }
+        setError("Google callback is missing required parameters.");
         return;
       }
 
       try {
         window.history.replaceState({}, "", "/oauth/callback");
         await completeGoogleSignIn(token);
-        if (!cancelled) {
-          window.location.replace("/dashboard");
-        }
+        navigate("/dashboard", { replace: true });
       } catch (nextError) {
-        if (!cancelled) {
-          setError(nextError.message || "Google sign-in failed");
-        }
+        setError(nextError.message || "Google sign-in failed");
       }
     }
 
     finishOAuth();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [completeGoogleSignIn]);
+  }, [completeGoogleSignIn, navigate]);
 
   return (
     <main className="auth-shell">

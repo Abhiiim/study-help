@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 
 function buildErrorMessage(error) {
   if (!error) {
@@ -107,7 +108,11 @@ export default function AuthForm({
               required
             />
           </label>
-        ) : null}
+        ) : (
+          <Link to="/forgot-password" className="auth-forgot-link">
+            Forgot password?
+          </Link>
+        )}
 
         {activeError ? <p className="form-error">{activeError}</p> : null}
         {!activeError && notice ? <p className="form-success">{notice}</p> : null}
