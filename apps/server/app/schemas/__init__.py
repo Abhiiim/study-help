@@ -11,7 +11,6 @@ from app.schemas.auth import (
     UserOut,
     WebAuthResponse,
 )
-from app.schemas.item import ItemCreateRequest, ItemListResponse, ItemOut, ItemStatsResponse, ItemUpdateRequest, SourceStat
 
 __all__ = [
     "SignupRequest",
@@ -25,10 +24,4 @@ __all__ = [
     "WebAuthResponse",
     "GoogleStartResponse",
     "GoogleSessionRequest",
-    "ItemCreateRequest",
-    "ItemUpdateRequest",
-    "ItemOut",
-    "ItemListResponse",
-    "SourceStat",
-    "ItemStatsResponse",
 ]

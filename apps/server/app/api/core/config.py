@@ -10,15 +10,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", case_sensitive=False)
 
     app_name: str = "Study Saver API"
-    env: Literal["development", "test", "production"] = "development"
+    ENV: Literal["development", "test", "production"] = "development"
+    DEV_USER_ID: int = 1
     debug: bool = True
 
     api_v1_prefix: str = "/api/v1"
 
     database_url: str = ""
 
-    jwt_secret_key: str = "change-me"
-    jwt_algorithm: str = "HS256"
+    JWT_SECRET_KEY: str = ""
+    JWT_ALGORITHM: str = ""
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 30
 
@@ -49,12 +50,12 @@ class Settings(BaseSettings):
     def validate_runtime_settings(self) -> None:
         errors: list[str] = []
 
-        if self.env == "production":
+        if self.ENV == "production":
             if self.debug:
                 errors.append("DEBUG must be false in production")
             if not self.database_url:
                 errors.append("DATABASE_URL is required in production")
-            if self.jwt_secret_key in {"change-me", "replace-with-a-long-random-secret"} or len(self.jwt_secret_key) < 32:
+            if self.JWT_SECRET_KEY in {"change-me", "replace-with-a-long-random-secret"} or len(self.JWT_SECRET_KEY) < 32:
                 errors.append("JWT_SECRET_KEY must be a strong production secret")
             if not self.google_client_id or not self.google_client_secret:
                 errors.append("Google OAuth credentials are required in production")

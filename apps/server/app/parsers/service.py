@@ -5,9 +5,9 @@ from urllib.parse import urljoin, urlparse
 
 import httpx
 
-from app.parsers.adapters import infer_content_type
-from app.parsers.generic import canonicalize_url, parse_generic_metadata, source_from_url
-from app.parsers.types import ParserResult
+from app.parsers.generic import canonicalize_url, domain_from_url, parse_generic_metadata
+from app.parsers.platform import detect_platform_and_type
+from app.parsers.types import PreviewResult
 
 logger = logging.getLogger(__name__)
 
@@ -90,24 +90,29 @@ def _fetch_html(url: str) -> str | None:
     return None
 
 
-def parse_url(url: str) -> ParserResult:
+def preview_url(url: str) -> PreviewResult:
     canonical_url = canonicalize_url(url)
-    source_site = source_from_url(canonical_url)
+    breakpoint()
+    domain = domain_from_url(canonical_url)
+    breakpoint()
+    platform, resource_type = detect_platform_and_type(canonical_url)
+    breakpoint()
 
     html = _fetch_html(canonical_url)
-    title, snippet = parse_generic_metadata(html)
+    breakpoint()
+    title, description, thumbnail_url = parse_generic_metadata(html)
+    breakpoint()
+    resolved_title = (title or canonical_url)[:500]
 
-    fallback_title = canonical_url
-    resolved_title = title or fallback_title
-    content_type = infer_content_type(source_site=source_site, title=resolved_title)
-
-    return ParserResult(
-        canonical_url=canonical_url,
-        source_site=source_site,
-        content_type=content_type,
-        title=resolved_title[:500],
-        snippet=snippet[:1000] if snippet else None,
-        metadata_json={
+    return PreviewResult(
+        title=resolved_title,
+        platform=platform,
+        type=resource_type,
+        thumbnail_url=thumbnail_url,
+        domain=domain,
+        metadata={
             "fetched": html is not None,
+            "description": description,
+            "canonical_url": canonical_url,
         },
     )

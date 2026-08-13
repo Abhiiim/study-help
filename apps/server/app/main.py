@@ -15,7 +15,7 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    if settings.env == "test":
+    if settings.ENV == "test":
         Base.metadata.create_all(bind=engine)
     yield
 

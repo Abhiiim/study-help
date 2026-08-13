@@ -3,10 +3,10 @@ from typing import Any
 
 
 @dataclass(slots=True)
-class ParserResult:
-    canonical_url: str
-    source_site: str
-    content_type: str
+class PreviewResult:
     title: str
-    snippet: str | None
-    metadata_json: dict[str, Any] = field(default_factory=dict)
+    platform: str
+    type: str
+    thumbnail_url: str | None
+    domain: str
+    metadata: dict[str, Any] = field(default_factory=dict)

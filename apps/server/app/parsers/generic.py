@@ -15,35 +15,15 @@ TRACKING_QUERY_KEYS = {
 def canonicalize_url(url: str) -> str:
     parsed = urlparse(url)
     netloc = parsed.netloc.lower()
-
     query_pairs = [(k, v) for k, v in parse_qsl(parsed.query, keep_blank_values=True) if k.lower() not in TRACKING_QUERY_KEYS]
     clean_query = urlencode(query_pairs, doseq=True)
-
     clean = parsed._replace(fragment="", query=clean_query, netloc=netloc)
     return urlunparse(clean)
 
 
-def source_from_url(url: str) -> str:
-    host = urlparse(url).netloc.lower()
-    host = host.removeprefix("www.")
+def domain_from_url(url: str) -> str:
+    host = urlparse(url).netloc.lower().removeprefix("www.")
     return host or "unknown"
-
-
-def content_type_from_source(source_site: str) -> str:
-    coding_sites = {
-        "codeforces.com",
-        "codechef.com",
-        "leetcode.com",
-        "atcoder.jp",
-        "geeksforgeeks.org",
-    }
-    blog_sites = {"medium.com", "substack.com"}
-
-    if any(source_site == site or source_site.endswith(f".{site}") for site in coding_sites):
-        return "problem"
-    if any(source_site == site or source_site.endswith(f".{site}") for site in blog_sites):
-        return "blog"
-    return "other"
 
 
 class _MetadataParser(HTMLParser):
@@ -53,6 +33,7 @@ class _MetadataParser(HTMLParser):
         self.description: str | None = None
         self.og_title: str | None = None
         self.og_description: str | None = None
+        self.og_image: str | None = None
         self._in_title = False
         self._title_parts: list[str] = []
 
@@ -75,6 +56,8 @@ class _MetadataParser(HTMLParser):
             self.og_title = content
         elif prop == "og:description":
             self.og_description = content
+        elif prop == "og:image":
+            self.og_image = content
         elif name == "description":
             self.description = content
 
@@ -92,12 +75,12 @@ def _clean_text(value: str) -> str:
     return " ".join(value.split()).strip()
 
 
-def parse_generic_metadata(html: str | None) -> tuple[str | None, str | None]:
+def parse_generic_metadata(html: str | None) -> tuple[str | None, str | None, str | None]:
     if not html:
-        return None, None
+        return None, None, None
 
     parser = _MetadataParser()
     parser.feed(html)
     title = parser.og_title or parser.title
     description = parser.og_description or parser.description
-    return title, description
+    return title, description, parser.og_image
